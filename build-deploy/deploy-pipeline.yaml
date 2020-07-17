@@ -1,0 +1,56 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: buildah-deploy-spring-service-mesh
+spec:
+  workspaces:
+  - name: local-maven-repo
+  resources:
+  - name: spring-service-mesh-repo
+    type: git
+  - name: spring-service-mesh-image
+    type: image
+  params:
+  - name: deployment-name
+    type: string
+    description: name of the deployment to be patched
+  tasks:
+  - name: build-image
+    taskRef:
+      name: buildah-with-args-spring-service-mesh
+      kind: Task
+    resources:
+      inputs:
+      - name: source
+        resource: spring-service-mesh-repo
+      outputs:
+      - name: image
+        resource: spring-service-mesh-image
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    - name: DOCKERIZE_VERSION
+      value: "v0.6.1"
+    - name: ARTIFACT_NAME
+      value: "target/spring-service-mesh-2.3.0.BUILD-SNAPSHOT"
+    - name: EXPOSED_PORT
+      value: "8080"
+      # value: "--build-arg ARTIFACT_NAME=target/spring-service-mesh-2.3.0.BUILD-SNAPSHOT"
+    volumeMounts:
+    - name: varlibcontainers
+      mountPath: /var/lib/containers
+  # - name: apply-manifests
+  #   taskRef:
+  #     name: apply-manifests
+  #   resources:
+  #     inputs:
+  #     - name: source
+  #       resource: spring-service-mesh-repo
+  #   runAfter:
+  #   - build-image
+  # - name: trigger-argocd-sync
+  #   taskRef:
+  #     name: argocd-sync
+  #     kind: Task
+  #   runAfter:
+  #   - build-image

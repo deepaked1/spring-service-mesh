@@ -1,0 +1,11 @@
+apiVersion: tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: spring-service-mesh
+spec:
+  serviceAccountName: pipeline
+  triggers:
+  - bindings:
+    - name: spring-service-mesh
+    template:
+      name: spring-service-mesh

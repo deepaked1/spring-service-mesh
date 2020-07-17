@@ -1,0 +1,21 @@
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: spring-service-mesh-repo
+spec:
+  type: git
+  params:
+  - name: url
+    value: https://github.com/deepaked1/spring-service-mesh.git
+---
+apiVersion: tekton.dev/v1alpha1
+kind: PipelineResource
+metadata:
+  name: spring-service-mesh-image
+spec:
+  type: image
+  params:
+  - name: url
+#    value: image-registry.openshift-image-registry.svc:5000/pipelines-tutorial/vote-api:latest
+    value: quay.io/deepaked/spring-service-mesh:latest

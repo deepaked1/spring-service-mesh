@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: buildah-maven-build-and-deploy-spring-service-mesh
+spec:
+  workspaces:
+  - name: target
+  - name: local-maven-repo
+  resources:
+  - name: spring-service-mesh-repo
+    type: git
+  - name: spring-service-mesh-image
+    type: image
+  params:
+  - name: deployment-name
+    type: string
+    description: name of the deployment to be patched
+  tasks:
+  - name: build
+    taskRef:
+      name: mvn
+    resources:
+      inputs:
+      - name: source
+        resource: spring-service-mesh-repo
+    params:
+    - name: GOALS
+      value: ["package"]
+    workspaces:
+    - name: maven-repo
+      workspace: local-maven-repo
+    - name: target
+      workspace: target
+  # - name: int-test
+  #   taskRef:
+  #     name: mvn
+  #   runAfter: ["build"]
+  #   resources:
+  #     inputs:
+  #     - name: source
+  #       resource: spring-service-mesh-repo
+  #   params:
+  #   - name: GOALS
+  #     value: ["verify"]
+  #   workspaces:
+  #   - name: maven-repo
+  #     workspace: local-maven-repo
+  #   # volumeMounts:
+  #   # - name: varlibcontainers
+  #   #   mountPath: /var/lib/containers
+  - name: build-image
+    taskRef:
+      name: buildah-with-args-spring-service-mesh
+      kind: Task
+    runAfter: ["build"]
+    resources:
+      inputs:
+      - name: source
+        resource: spring-service-mesh-repo
+      outputs:
+      - name: image
+        resource: spring-service-mesh-image
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    - name: DOCKERIZE_VERSION
+      value: "v0.6.1"
+    - name: ARTIFACT_NAME
+      value: "spring-service-mesh-2.3.0.BUILD-SNAPSHOT"
+    - name: EXPOSED_PORT
+      value: "8080"
+      # value: "--build-arg ARTIFACT_NAME=target/spring-service-mesh-2.3.0.BUILD-SNAPSHOT"
+    workspaces:
+    - name: target
+      workspace: target
+    # volumeMounts:
+    # - name: varlibcontainers
+    #   mountPath: /var/lib/containers
+  # - name: apply-manifests
+  #   taskRef:
+  #     name: apply-manifests
+  #   resources:
+  #     inputs:
+  #     - name: source
+  #       resource: spring-service-mesh-repo
+  #   runAfter:
+  #   - build-image
+  - name: trigger-argocd-sync
+    taskRef:
+      name: argocd-sync-spring-service-mesh
+      kind: Task
+    runAfter:
+    - build-image

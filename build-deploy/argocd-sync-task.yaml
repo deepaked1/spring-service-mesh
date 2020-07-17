@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: argocd-sync-spring-service-mesh
+spec:
+  inputs:
+  #   resources:
+  #   - name: source
+  #     type: git
+    params:
+  #   - name: manifest_dir
+  #     description: The directory in source that contains yaml manifests
+  #     type: string
+  #     default: "k8s"
+  steps:
+    - name: sync-app
+      image: quay.io/openshift/origin-cli:latest
+      workingDir: /workspace/source
+      #command: ['curl', '-X', 'POST', '-k', '-i', 'https://example-argocd-server-gitops.ddcluster-a01ee4194ed985a1e32b1d96fd4ae346-0000.us-south.containers.appdomain.cloud/api/v1/applications/pet-clinic-prod/sync', '--data', '{}']
+      command: ["/bin/bash"]
+      env:
+      - name: SECRET_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: argocd-secret
+            key: deepak
+      args:
+        - -c
+        - |
+          curl --help
+          argocd_server="https://example-argocd-server-gitops.ddcluster-a01ee4194ed985a1e32b1d96fd4ae346-0000.us-south.containers.appdomain.cloud"
+          oc login --token=ZQ8TM03b9eKVe7dTeac3gy5h10vkO2Z3rrO-bZOxPG4 https://c106-e.us-south.containers.cloud.ibm.com:30257
+          wget --no-check-certificate -O argocd $argocd_server/download/argocd-linux-amd64 | tac | tac | grep -qs foo
+          chmod +x ./argocd
+          ./argocd login example-argocd-server-gitops.ddcluster-a01ee4194ed985a1e32b1d96fd4ae346-0000.us-south.containers.appdomain.cloud --insecure --username deepak --password $SECRET_PASSWORD 
+          ./argocd app sync spring-service-mesh-prod --insecure --prune --server example-argocd-server-gitops.ddcluster-a01ee4194ed985a1e32b1d96fd4ae346-0000.us-south.containers.appdomain.cloud --timeout 60
+          ./argocd app sync spring-service-mesh-dr --insecure --prune --server example-argocd-server-gitops.ddcluster-a01ee4194ed985a1e32b1d96fd4ae346-0000.us-south.containers.appdomain.cloud --timeout 60
+          

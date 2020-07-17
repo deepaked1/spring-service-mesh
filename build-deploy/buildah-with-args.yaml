@@ -1,0 +1,153 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: buildah-with-args-spring-service-mesh
+spec:
+  workspaces:
+  - name: target
+  inputs:
+    params:
+    - name: BUILDER_IMAGE
+      description: The location of the buildah builder image.
+      default: quay.io/buildah/stable:v1.11.3
+    - name: DOCKERFILE
+      description: Path to the Dockerfile to build.
+      default: Dockerfile
+    - name: TLSVERIFY
+      description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+      default: "true"
+    - name: DOCKERIZE_VERSION
+      default: "v0.6.1"
+    - name: ARTIFACT_NAME
+      default: "spring-service-mesh-latest"
+    - name: EXPOSED_PORT
+      default: "8080"
+    - name: newURL
+      default: "google.com"
+
+    resources:
+    - name: source
+      type: git
+
+  outputs:
+    resources:
+    - name: image
+      type: image
+
+  steps:
+  - name: print
+    image: ubuntu
+    workingDir: /workspace/source
+    # command: ['ls', '-al' , '$(workspaces.maven-repo.volume)']
+    command: ["/bin/bash"]
+    args:
+      - -c
+      - |
+        echo $(workspaces.source.path)
+        ls -al $(workspaces.source.path)
+        echo $(workspaces.target.path)
+        ls -al $(workspaces.target.path)
+        ls -al /workspace/source
+        ls -al /workspace/maven-repo
+        ls -al /workspace/docker
+        ls -al /workspace/target
+        cp -rf /workspace/source/* /workspace/target
+        echo $(outputs.resources.image.url)
+        set url=$(outputs.resources.image.url)
+        echo $(outputs.resources.image.url)
+  - name: build
+    image: $(inputs.params.BUILDER_IMAGE)
+    workingDir: /workspace/target
+    # command: ['buildah', 'bud', '--tls-verify=$(inputs.params.TLSVERIFY)', '--layers=true', '--build-arg' , 'DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION)' , '--build-arg' , 'ARTIFACT_NAME=$(inputs.params.ARTIFACT_NAME)' , '--build-arg' , 'EXPOSED_PORT=$(inputs.params.EXPOSED_PORT)' , '-f', '$(inputs.params.DOCKERFILE)', '-t', '$(outputs.resources.image.url)' , '.']
+    command: ["/bin/bash"]
+    args:
+      - -c
+      - |
+        echo $(outputs.resources.image.url)
+        ls -t *.jar | head -1
+        url=$(echo $(outputs.resources.image.url) | cut -d: -f1)
+        echo "URL:"-$url
+        artifact=$(ls -t *.jar | head -1)
+        version=$(ls -t *.jar | head -1 | sed 's/spring-service-mesh-//' | sed 's/.jar//')
+        echo "Version:"$version
+        newURL=$url:v$version
+        echo "hello"$newURL"hello"
+        echo $newURL>./newURL
+        echo "buildah bud --tls-verify=$(inputs.params.TLSVERIFY) --layers --build-arg DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION) --build-arg ARTIFACT_NAME=$artifact --build-arg EXPOSED_PORT=$(inputs.params.EXPOSED_PORT) -f $(inputs.params.DOCKERFILE) -t $newURL ."
+        $(buildah bud --tls-verify=$(inputs.params.TLSVERIFY) --layers --build-arg DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION) --build-arg ARTIFACT_NAME=$artifact --build-arg EXPOSED_PORT=$(inputs.params.EXPOSED_PORT) -f $(inputs.params.DOCKERFILE) -t $newURL .)
+        echo "build done"
+        buildah images
+        # cat ./newURL
+        # echo "buildah push --tls-verify=$(inputs.params.TLSVERIFY) $newURL docker://$newURL"
+        # $(buildah push --tls-verify=$(inputs.params.TLSVERIFY) $newURL docker://$newURL)
+        # echo "push done"
+    volumeMounts:
+    - name: varlibcontainers
+      mountPath: /var/lib/containers
+    securityContext:
+      privileged: true
+
+  - name: push
+    image: $(inputs.params.BUILDER_IMAGE)
+    workingDir: /workspace/target
+    # command: ['buildah', 'bud', '--tls-verify=$(inputs.params.TLSVERIFY)', '--layers=true', '--build-arg' , 'DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION)' , '--build-arg' , 'ARTIFACT_NAME=$(inputs.params.ARTIFACT_NAME)' , '--build-arg' , 'EXPOSED_PORT=$(inputs.params.EXPOSED_PORT)' , '-f', '$(inputs.params.DOCKERFILE)', '-t', '$(outputs.resources.image.url)' , '.']
+    command: ["/bin/bash"]
+    args:
+      - -c
+      - |
+        newURL=$(cat ./newURL)
+        echo "hello"$newURL"hello"
+        ls -al /var/lib/containers/storage
+        pwd
+        ls -al .
+        echo "buildah push --tls-verify=$(inputs.params.TLSVERIFY) $newURL docker://$newURL"
+        $(buildah push --tls-verify=$(inputs.params.TLSVERIFY) $newURL docker://$newURL)
+        echo "push done"
+    volumeMounts:
+    - name: varlibcontainers
+      mountPath: /var/lib/containers
+    securityContext:
+      privileged: true
+
+  # - name: build
+  #   image: $(inputs.params.BUILDER_IMAGE)
+  #   workingDir: /workspace/target
+  #   # command: ['buildah', 'bud', '--tls-verify=$(inputs.params.TLSVERIFY)', '--layers=true', '--build-arg' , 'DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION)' , '--build-arg' , 'ARTIFACT_NAME=$(inputs.params.ARTIFACT_NAME)' , '--build-arg' , 'EXPOSED_PORT=$(inputs.params.EXPOSED_PORT)' , '-f', '$(inputs.params.DOCKERFILE)', '-t', '$(outputs.resources.image.url)' , '.']
+  #   command: ['buildah']
+  #   args:
+  #     - bud
+  #     - "--tls-verify=$(inputs.params.TLSVERIFY)"
+  #     - --layers
+  #     - --build-arg
+  #     - "DOCKERIZE_VERSION=$(inputs.params.DOCKERIZE_VERSION)"
+  #     - --build-arg
+  #     - "ARTIFACT_NAME=$(inputs.params.ARTIFACT_NAME)"
+  #     - --build-arg
+  #     - "EXPOSED_PORT=$(inputs.params.EXPOSED_PORT)"
+  #     - -f
+  #     - $(inputs.params.DOCKERFILE)
+  #     - -t
+  #     - $(outputs.resources.image.url)
+  #     - .
+  #   volumeMounts:
+  #   - name: varlibcontainers
+  #     mountPath: /var/lib/containers
+
+    # securityContext:
+    #   privileged: true
+
+  # - name: push
+  #   image: $(inputs.params.BUILDER_IMAGE)
+  #   workingDir: /workspace/source
+  #   # command: ['find', '/var/lib/containers' , '-name', '*']
+  #   command: ['buildah', 'push', '--tls-verify=$(inputs.params.TLSVERIFY)', '$(outputs.resources.image.url)', 'docker://$(outputs.resources.image.url)']
+  #   volumeMounts:
+  #   - name: varlibcontainers
+  #     mountPath: /var/lib/containers
+  #   securityContext:
+  #     privileged: true
+
+
+  volumes:
+  - name: varlibcontainers
+    emptyDir: {}

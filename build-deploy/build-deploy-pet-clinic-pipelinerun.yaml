@@ -1,0 +1,24 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: build-deploy-spring-service-mesh-pipelinerun
+spec:
+  pipelineRef:
+    name: buildah-maven-build-and-deploy-spring-service-mesh
+  resources:
+  - name: spring-service-mesh-repo
+    resourceRef:
+      name: spring-service-mesh-repo
+  - name: spring-service-mesh-image
+    resourceRef:
+      name: spring-service-mesh-image
+  params:
+  - name: deployment-name
+    value: spring-service-mesh
+  workspaces:
+  - name: local-maven-repo
+    persistentVolumeClaim:
+      claimName: maven-repo-pvc
+  - name: target
+    persistentVolumeClaim:
+      claimName: target-pvc
