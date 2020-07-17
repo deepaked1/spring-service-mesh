@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: pet-clinic
+  name: pet-clinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pet-clinic
+  template:
+    metadata:
+      labels:
+        app: pet-clinic
+    spec:
+      containers:
+        - image: quay.io/deepaked/pet-clinic:v0.0.1
+          imagePullPolicy: Always
+          name: pet-clinic
+          ports:
+            - containerPort: 9000
+              protocol: TCP

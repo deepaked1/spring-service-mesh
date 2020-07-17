@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: spring-service-mesh
+  name: spring-service-mesh
+spec:
+  replicas: 1
+  revisionHistoryLimit: 4
+  selector:
+    matchLabels:
+      app: spring-service-mesh
+  template:
+    metadata:
+      labels:
+        app: spring-service-mesh
+    spec:
+      containers:
+        - image: quay.io/deepaked/spring-service-mesh:v0.0.14
+          imagePullPolicy: Always
+          name: spring-service-mesh
+          ports:
+            - containerPort: 8080
+              protocol: TCP
